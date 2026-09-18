@@ -45,7 +45,7 @@ python scripts_ingest.py
 ```powershell
 uvicorn app.main:app --reload
 ```
-Open http://127.0.0.1:8000/docs
+Open http://127.0.0.1:8000
 
 ## Demo request
 POST `/analyze` with:
