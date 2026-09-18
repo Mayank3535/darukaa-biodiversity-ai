@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darukaa Earth — Biodiversity Intelligence</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, Arial, sans-serif;
+            background: #f4f7f2;
+            color: #1d2b20;
+        }
+        header {
+            background: #173b27;
+            color: white;
+            padding: 24px 7%;
+        }
+        header h1 { margin: 0; font-size: 28px; }
+        header p { margin: 6px 0 0; opacity: .8; }
+        main {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.06);
+        }
+        textarea {
+            width: 100%;
+            min-height: 130px;
+            padding: 16px;
+            border: 1px solid #ccd8ce;
+            border-radius: 12px;
+            font-size: 16px;
+            resize: vertical;
+        }
+        button {
+            margin-top: 12px;
+            background: #2f7d4a;
+            color: white;
+            border: 0;
+            padding: 13px 22px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover { background: #25663b; }
+        button:disabled { opacity: .5; }
+        .loading { display: none; margin-top: 15px; }
+        .section { margin-top: 22px; }
+        .section h3 { color: #285e3a; }
+        .pill {
+            display: inline-block;
+            background: #e8f2e9;
+            padding: 7px 11px;
+            border-radius: 20px;
+            margin: 4px;
+            font-size: 14px;
+        }
+        .recommendation {
+            background: #edf7ef;
+            border-left: 5px solid #2f7d4a;
+            padding: 18px;
+            border-radius: 8px;
+        }
+        li { margin-bottom: 8px; }
+        .source {
+            border: 1px solid #dde6df;
+            border-radius: 10px;
+            padding: 12px;
+            margin: 8px 0;
+        }
+        .source a { color: #286b40; }
+        .error { color: #a33; }
+    </style>
+</head>
+
+<body>
+<header>
+    <h1>🌱 Darukaa Earth</h1>
+    <p>Biodiversity Intelligence & Environmental Reasoning</p>
+</header>
+
+<main>
+    <div class="card">
+        <h2>Environmental Assessment</h2>
+        <p>Describe your farm, landscape, soil and climate conditions.</p>
+
+        <textarea id="query" placeholder="Example: I have a wheat farm in a semi-arid region with low rainfall. Soil organic carbon is 0.3% and it is currently monoculture."></textarea>
+
+        <button id="analyze" onclick="analyze()">Analyze ecosystem</button>
+        <div class="loading" id="loading">🌿 Analyzing environmental conditions...</div>
+    </div>
+
+    <div class="card" id="result" style="display:none;"></div>
+</main>
+
+<script>
+async function analyze() {
+    const query = document.getElementById("query").value.trim();
+    if (!query) return;
+
+    const button = document.getElementById("analyze");
+    const loading = document.getElementById("loading");
+    const result = document.getElementById("result");
+
+    button.disabled = true;
+    loading.style.display = "block";
+    result.style.display = "none";
+
+    try {
+        const response = await fetch("/analyze", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({query})
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Analysis failed");
+        }
+
+        renderResult(data);
+    } catch (err) {
+        result.innerHTML = `<div class="error"><b>Error:</b> ${err.message}</div>`;
+        result.style.display = "block";
+    }
+
+    button.disabled = false;
+    loading.style.display = "none";
+}
+
+function renderResult(data) {
+    const state = data.environmental_state || {};
+    const answer = data.answer || {};
+    const rec = answer.recommendation || {};
+    const evidence = data.evidence || answer.evidence || [];
+
+    let html = `<h2>🌍 Assessment</h2>`;
+
+    if (answer.summary)
+        html += `<p><strong>${answer.summary}</strong></p>`;
+
+    html += `<div class="section"><h3>Environmental State</h3>`;
+
+    if (state.region) html += `<span class="pill">📍 ${state.region}</span>`;
+    if (state.rainfall) html += `<span class="pill">🌧️ ${state.rainfall} rainfall</span>`;
+
+    const soil = state.soil || {};
+    const land = state.land_use || {};
+
+    if (soil.organic_carbon != null)
+        html += `<span class="pill">🪨 SOC: ${soil.organic_carbon}${soil.unit || "%"}</span>`;
+
+    if (land.crop) html += `<span class="pill">🌾 ${land.crop}</span>`;
+    if (land.system) html += `<span class="pill">🔄 ${land.system}</span>`;
+
+    html += `</div>`;
+
+    if (answer.diagnosis?.length) {
+        html += `<div class="section"><h3>Diagnosis</h3><ul>`;
+        answer.diagnosis.forEach(x => html += `<li>${x}</li>`);
+        html += `</ul></div>`;
+    }
+
+    if (answer.key_interactions?.length) {
+        html += `<div class="section"><h3>🔗 Key Interactions</h3><ul>`;
+        answer.key_interactions.forEach(x => html += `<li>${x}</li>`);
+        html += `</ul></div>`;
+    }
+
+    if (rec.intervention) {
+        html += `
+        <div class="section">
+            <h3>🌱 Recommended Intervention</h3>
+            <div class="recommendation">
+                <h3>${rec.intervention}</h3>
+                <p>${rec.rationale || ""}</p>
+            </div>
+        </div>`;
+    }
+
+    if (rec.expected_effects?.length) {
+        html += `<div class="section"><h3>Expected Effects</h3><ul>`;
+        rec.expected_effects.forEach(x => html += `<li>${x}</li>`);
+        html += `</ul></div>`;
+    }
+
+    if (rec.implementation?.length) {
+        html += `<div class="section"><h3>Implementation</h3><ol>`;
+        rec.implementation.forEach(x => html += `<li>${x}</li>`);
+        html += `</ol></div>`;
+    }
+
+    if (rec.metrics?.length) {
+        html += `<div class="section"><h3>📊 Monitoring Metrics</h3><ul>`;
+        rec.metrics.forEach(x => html += `<li>${x}</li>`);
+        html += `</ul></div>`;
+    }
+
+    if (evidence.length) {
+        html += `<div class="section"><h3>📚 Scientific Evidence</h3>`;
+        evidence.forEach(e => {
+            const title = e.title || "Scientific source";
+            const url = e.source_url || e.url || "#";
+            html += `
+                <div class="source">
+                    <strong>${title}</strong><br>
+                    ${e.organization || ""}<br>
+                    ${e.supporting_point || e.content?.slice(0,250) || ""}
+                    <br><a href="${url}" target="_blank">View source →</a>
+                </div>`;
+        });
+        html += `</div>`;
+    }
+
+    if (answer.confidence)
+        html += `<div class="section"><b>Confidence:</b> ${answer.confidence}</div>`;
+
+    document.getElementById("result").innerHTML = html;
+    document.getElementById("result").style.display = "block";
+}
+</script>
+</body>
+</html>
